@@ -1,18 +1,18 @@
-use numpy::ndarray::{s, stack, ArrayD, ArrayViewD, ArrayViewMutD, Axis};
+use numpy::ndarray::{s, stack, Array1, Array2, ArrayView1, ArrayView2, Axis};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashSet};
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct KDTree {
     left: Option<Box<KDTree>>,
-    point: ArrayD<i64>,
+    point: Array1<i64>,
     right: Option<Box<KDTree>>,
 }
 
 #[derive(Debug)]
 struct PointDis {
     distance: f64,
-    point: ArrayD<i64>,
+    point: Array1<i64>,
 }
 
 impl PartialEq for PointDis {
@@ -38,13 +38,13 @@ impl Ord for PointDis {
 }
 
 impl KDTree {
-    pub fn new(points: ArrayViewMutD<i64>) -> Option<Box<KDTree>> {
+    pub fn new(points: ArrayView2<i64>) -> Option<Box<KDTree>> {
         let len = points.shape()[0];
         Self::build(&mut points.to_owned(), 0, len, 0)
     }
 
     fn build(
-        points: &mut ArrayD<i64>,
+        points: &mut Array2<i64>,
         begin: usize,
         end: usize,
         axis: usize,
@@ -74,14 +74,14 @@ impl KDTree {
     }
 
     fn nth_element(
-        points: &mut ArrayD<i64>,
+        points: &mut Array2<i64>,
         begin: usize,
         end: usize,
         axis: usize,
         n: usize,
-    ) -> ArrayD<i64> {
+    ) -> Array1<i64> {
         if end - begin <= 1 {
-            return points.slice(s![begin, ..]).to_owned().into_dyn();
+            return points.slice(s![begin, ..]).to_owned();
         }
 
         let pivot = points.slice(s![begin + end >> 1, ..]).to_owned().into_dyn();
@@ -113,11 +113,11 @@ impl KDTree {
         } else if n >= k {
             Self::nth_element(points, k, end, axis, n)
         } else {
-            points.slice(s![n, ..]).to_owned().into_dyn()
+            points.slice(s![n, ..]).to_owned()
         }
     }
 
-    pub fn k_nearest(&self, query: ArrayViewD<i64>, k: usize) -> ArrayD<i64> {
+    pub fn k_nearest(&self, query: ArrayView1<i64>, k: usize) -> Array2<i64> {
         let mut visited: HashSet<Self> = HashSet::new();
         let mut buf: BinaryHeap<PointDis> = BinaryHeap::new();
         self.knn_helper(&query, k, &mut visited, &mut buf, 0);
@@ -125,7 +125,7 @@ impl KDTree {
             Axis(0),
             buf.iter()
                 .map(|pd| pd.point.view())
-                .collect::<Vec<ArrayViewD<i64>>>()
+                .collect::<Vec<ArrayView1<i64>>>()
                 .as_slice(),
         )
         .unwrap()
@@ -133,7 +133,7 @@ impl KDTree {
 
     fn knn_helper(
         &self,
-        query: &ArrayViewD<i64>,
+        query: &ArrayView1<i64>,
         k: usize,
         visited: &mut HashSet<Self>,
         result: &mut BinaryHeap<PointDis>,
@@ -188,7 +188,7 @@ impl KDTree {
         }
     }
 
-    fn get_distance(x: &ArrayViewD<i64>, y: &ArrayViewD<i64>) -> f64 {
+    fn get_distance(x: &ArrayView1<i64>, y: &ArrayView1<i64>) -> f64 {
         x.iter()
             .zip(y.iter())
             .fold(0.0, |acc, (&a, &b)| acc + ((a - b) * (a - b)) as f64)
