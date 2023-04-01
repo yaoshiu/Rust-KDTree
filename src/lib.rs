@@ -1,4 +1,4 @@
-use numpy::{IntoPyArray, PyArrayDyn, PyReadonlyArrayDyn, PyReadwriteArrayDyn};
+use numpy::{IntoPyArray, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::prelude::*;
 
 mod kdt;
@@ -11,13 +11,13 @@ struct KDTree {
 #[pymethods]
 impl KDTree {
     #[new]
-    fn new(mut train: PyReadwriteArrayDyn<i64>) -> PyResult<Self> {
+    fn new(train: PyReadonlyArray2<i64>) -> PyResult<Self> {
         Ok(Self {
-            kdt: kdt::KDTree::new(train.as_array_mut()).unwrap(),
+            kdt: kdt::KDTree::new(train.as_array()).unwrap(),
         })
     }
 
-    fn k_nearest<'py>(&self, query: PyReadwriteArrayDyn<i64>, k: usize) -> Py<PyArrayDyn<i64>> {
+    fn k_nearest<'py>(&self, query: PyReadonlyArray1<i64>, k: usize) -> Py<PyArray2<i64>> {
         Python::with_gil(|py| {
             self.kdt
                 .k_nearest(query.as_array(), k)
@@ -34,12 +34,14 @@ fn knn(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     #[pyo3(name = "knn")]
     fn wrapped_knn<'py>(
         py: Python<'py>,
-        mut train: PyReadwriteArrayDyn<i64>,
-        query: PyReadonlyArrayDyn<i64>,
+        train: PyReadonlyArray2<i64>,
+        query: PyReadonlyArray1<i64>,
         k: usize,
-    ) -> &'py PyArrayDyn<i64> {
-        let kdt = kdt::KDTree::new(train.as_array_mut()).unwrap();
-        kdt.k_nearest(query.as_array(), k).into_pyarray(py)
+    ) -> &'py PyArray2<i64> {
+        kdt::KDTree::new(train.as_array())
+            .unwrap()
+            .k_nearest(query.as_array(), k)
+            .into_pyarray(py)
     }
 
     m.add_class::<KDTree>()?;
